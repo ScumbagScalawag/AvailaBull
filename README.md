@@ -1,4 +1,4 @@
-# Build a Full Stack App with CockroachDB serverless and Python
+0# Build a Full Stack App with CockroachDB serverless and Python
 
 This workshop will walk you through getting started with CockroachDB serverless and provide an introduction to SQL. It’ll also teach you how to build a simple username and password auth system for a FAbRiC stack (FastAPI, React, and CockroachDB) application. This workshop will be hands on, and you'll leave with a working full stack application powered by CockroachDB serverless!
 
