@@ -1,12 +1,13 @@
-import app.database.mock_data as MockData
-from typing import Callable, Iterator, Optional
-from psycopg import Connection
 
+from typing import Callable, Iterator, Optional
+from psycopg import Connection, sql
+from uuid import uuid4, UUID
 from app.models.auth import UserRegister
 from app.models.users import UserUpdate
 from app.database import get_db
 from app.database.models import User, UserInDB
 from app.security import manager, hash_password
+from app.database.mock_data import get_user_by_id
 
 
 @manager.user_loader(conn_provider=get_db)
@@ -40,11 +41,16 @@ def get_user_by_username(
 
 
 def get_users(db: Connection) -> list[User]:
-    return MockData.get_users()
+    results = db.execute(
+        """
+        SELECT id, username, full_name, is_admin
+        FROM users;
+    """
+    ).fetchall()
+    users = [User.parse_obj(item) for item in results if item is not None]
+    return users
 
 
-def get_user_by_id(user_id: str, db: Connection) -> User:
-    return MockData.get_user_by_id(user_id)
 
 
 def create_user(newUser: UserRegister, db: Connection) -> User:
@@ -61,12 +67,23 @@ def create_user(newUser: UserRegister, db: Connection) -> User:
 
 
 def update_user(user_id: str, user: UserUpdate, db: Connection) -> User:
+    user_id = UUID(user_id)
     if user.password is not None:
         user.password_hash = hash_password(user.password)
         user.password = None
-    user = MockData.update_user(user_id, user)
-    return user
+    user_dict = user.dict(exclude_none=True)
+    query = sql.SQL("UPDATE users SET {data} WHERE id={id};").format(
+        data=sql.SQL(", ").join(
+            sql.Composed([sql.Identifier(k), sql.SQL(" = "), sql.Placeholder(k)])
+            for k in user_dict.keys()
+        ),
+        id=user_id,
+    )
+    db.execute(query, user_dict)
+    user = get_user_by_id(user_id)
+    return
 
 
 def delete_user(user_id: str, db: Connection):
-    return MockData.delete_user(user_id)
+    db.execute("DELETE FROM users WHERE id=%s", (user_id,))
+    return
